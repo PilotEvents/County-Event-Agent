@@ -1,15 +1,12 @@
 import anthropic, requests, json, os, time
-from datetime import datetime, timedelta
 
-# ── Configuration (loaded from GitHub Secrets) ──────────────────────
 CITYSPARK_USER   = os.environ["CITYSPARK_USER"]
 CITYSPARK_PASS   = os.environ["CITYSPARK_PASS"]
 ANTHROPIC_KEY    = os.environ["ANTHROPIC_API_KEY"]
 PORTAL           = "pilot"
 COUNTY           = "Moore County, NC"
 RADIUS_MI        = 30
-DAYS_AHEAD       = 90
-
+DAYS_AHEAD       = 30
 CITYSPARK_API    = "https://api.cityspark.com/v1"
 
 SOURCES = [
@@ -32,8 +29,7 @@ SOURCES = [
     "https://www.moorecountync.gov/events",
     "https://www.sandhills.edu/calendar",
     "https://homeofgolf.com/events/",
-    "https://www.thepinestimes.com/events/"
-    
+    "https://www.thepinestimes.com/events/",
 ]
 
 SYSTEM = f"""
@@ -47,32 +43,43 @@ Only include events physically in or near {COUNTY} (within {RADIUS_MI} miles).
 """
 
 def search_source(source, client):
-    """Ask Claude to search one source and return events as JSON."""
-    resp = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4000,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        system=SYSTEM,
-        messages=[{"role": "user",
-                   "content": f"Find all upcoming events from: {source}"}]
-    )
-    text = "".join(b.text for b in resp.content if hasattr(b, "text"))
-    clean = text.strip().lstrip("```json").lstrip("```").rstrip("```")
-    return json.loads(clean)
+    """Ask Claude to search one source, with automatic retry on rate limit."""
+    for attempt in range(4):
+        try:
+            resp = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4000,
+                tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                system=SYSTEM,
+                messages=[{"role": "user",
+                           "content": f"Find all upcoming events from: {source}"}]
+            )
+            text = "".join(b.text for b in resp.content if hasattr(b, "text"))
+            clean = text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+            if not clean:
+                return []
+            return json.loads(clean)
+        except Exception as e:
+            msg = str(e)
+            if "rate_limit" in msg or "429" in msg:
+                wait = 60 * (attempt + 1)
+                print(f"    Rate limited. Waiting {wait}s before retry {attempt + 1}/3...")
+                time.sleep(wait)
+            else:
+                raise
+    return []
 
 def deduplicate(events):
-    """Remove duplicate events by name + start date."""
     seen, unique = set(), []
     for ev in events:
-        key = (ev.get("name","").lower().strip(),
-               ev.get("start_datetime","")[:10])
+        key = (ev.get("name", "").lower().strip(),
+               ev.get("start_datetime", "")[:10])
         if key not in seen:
             seen.add(key)
             unique.append(ev)
     return unique
 
 def submit(event):
-    """Submit one event to CitySpark."""
     payload = {
         "portal": PORTAL,
         "name": event.get("name", "Untitled Event"),
@@ -102,7 +109,7 @@ def main():
     print(f"Starting event agent for {COUNTY}")
     print(f"Scanning {len(SOURCES)} sources...")
 
-    for source in SOURCES:
+    for i, source in enumerate(SOURCES):
         print(f"  Searching: {source}")
         try:
             events = search_source(source, client)
@@ -110,7 +117,10 @@ def main():
             all_events.extend(events)
         except Exception as e:
             print(f"    Error: {e}")
-            time.sleep(3)
+        # Pause between every search — longer after every 5th source
+        pause = 30 if (i + 1) % 5 == 0 else 10
+        print(f"    (waiting {pause}s...)")
+        time.sleep(pause)
 
     unique = deduplicate(all_events)
     print(f"\nTotal: {len(all_events)} found, {len(unique)} unique after dedup")
@@ -121,8 +131,8 @@ def main():
             submitted += 1
             print(f"  Submitted: {ev.get('name')}")
         else:
-            print(f"  Skipped (already exists or error): {ev.get('name')}")
-    time.sleep(2)
+            print(f"  Skipped: {ev.get('name')}")
+        time.sleep(1)
 
     print(f"\nDone. {submitted}/{len(unique)} events submitted to CitySpark.")
 
