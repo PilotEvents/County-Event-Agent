@@ -110,6 +110,7 @@ def main():
             all_events.extend(events)
         except Exception as e:
             print(f"    Error: {e}")
+            time.sleep(3)
 
     unique = deduplicate(all_events)
     print(f"\nTotal: {len(all_events)} found, {len(unique)} unique after dedup")
