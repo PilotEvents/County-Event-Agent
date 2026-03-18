@@ -1,4 +1,4 @@
-import anthropic, requests, json, os
+import anthropic, requests, json, os, time
 from datetime import datetime, timedelta
 
 # ── Configuration (loaded from GitHub Secrets) ──────────────────────
@@ -121,6 +121,7 @@ def main():
             print(f"  Submitted: {ev.get('name')}")
         else:
             print(f"  Skipped (already exists or error): {ev.get('name')}")
+    time.sleep(2)
 
     print(f"\nDone. {submitted}/{len(unique)} events submitted to CitySpark.")
 
