@@ -9,7 +9,7 @@ ANTHROPIC_KEY    = os.environ["ANTHROPIC_API_KEY"]
 PORTAL           = "pilot"
 COUNTY           = "Moore County, NC"
 RADIUS_MI        = 30
-DAYS_AHEAD       = 30
+DAYS_AHEAD       = 90
 
 CITYSPARK_API    = "https://api.cityspark.com/v1"
 
@@ -24,6 +24,17 @@ SOURCES = [
     "Moore County schools community events",
     "Sandhills Community College events",
     "Ticketmaster Moore County NC",
+    "Events in Southern Pines NC",
+    "Events in Pinehurst NC",
+    "Events in Carthage NC",
+    "Events in Aberdeen NC",
+    "https://www.pinehurst.com/events/",
+    "https://www.southernpines.com/calendar/",
+    "https://www.moorecountync.gov/events",
+    "https://www.sandhills.edu/calendar",
+    "https://homeofgolf.com/events/",
+    "https://www.thepinestimes.com/events/"
+    
 ]
 
 SYSTEM = f"""
