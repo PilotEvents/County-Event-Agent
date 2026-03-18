@@ -1,0 +1,28 @@
+name: County Event Agent
+
+on:
+  schedule:
+    - cron: "0 11 * * *"   # runs at 7am Eastern (11am UTC) every day
+  workflow_dispatch:         # also lets you run it manually with a button click
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install anthropic requests
+
+      - name: Run event agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CITYSPARK_USER:    ${{ secrets.CITYSPARK_USER }}
+          CITYSPARK_PASS:    ${{ secrets.CITYSPARK_PASS }}
+        run: python agent.py
