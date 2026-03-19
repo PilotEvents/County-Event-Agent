@@ -9,42 +9,26 @@ RADIUS_MI        = 30
 DAYS_AHEAD       = 30
 CITYSPARK_API    = "https://api.cityspark.com/v1"
 
+# Trimmed to 5 sources while we debug
 SOURCES = [
-    "Eventbrite Moore County NC",
-    "Facebook Events Moore County NC",
-    "Meetup Moore County NC",
-    "Moore County Parks and Recreation events",
-    "Moore County library events",
-    "Moore County Chamber of Commerce events",
-    "Pinehurst Southern Pines Aberdeen local events",
-    "Moore County schools community events",
-    "Sandhills Community College events",
-    "Ticketmaster Moore County NC",
-    "Events in Southern Pines NC",
-    "Events in Pinehurst NC",
-    "Events in Carthage NC",
-    "Events in Aberdeen NC",
-    "https://www.pinehurst.com/events/",
-    "https://www.southernpines.com/calendar/",
-    "https://www.moorecountync.gov/events",
-    "https://www.sandhills.edu/calendar",
-    "https://homeofgolf.com/events/",
-    "https://www.thepinestimes.com/events/",
+    "Moore County Parks and Recreation events NC",
+    "Moore County library events NC",
+    "Pinehurst NC upcoming events",
+    "Southern Pines NC upcoming events",
+    "Sandhills Community College events NC",
 ]
 
 SYSTEM = f"""
 You are a local event research agent for {COUNTY}.
 Search for ALL public events in the next {DAYS_AHEAD} days.
-For each event return a JSON object with these fields:
-  name, description, start_datetime (ISO 8601), end_datetime (ISO 8601),
-  location_name, address, city, state, ticket_url, free (true/false)
-Return ONLY a valid JSON array. No other text.
-Only include events physically in or near {COUNTY} (within {RADIUS_MI} miles).
+Return ONLY a valid JSON array, with no explanation before or after it.
+Each item must have: name, description, start_datetime (ISO 8601),
+end_datetime (ISO 8601), location_name, address, city, state, ticket_url.
+If you find no events, return an empty array: []
 """
 
 def search_source(source, client):
-    """Ask Claude to search one source, with automatic retry on rate limit."""
-    for attempt in range(4):
+    for attempt in range(3):
         try:
             resp = client.messages.create(
                 model="claude-sonnet-4-20250514",
@@ -54,19 +38,31 @@ def search_source(source, client):
                 messages=[{"role": "user",
                            "content": f"Find all upcoming events from: {source}"}]
             )
+            # Print raw response so we can see what's coming back
             text = "".join(b.text for b in resp.content if hasattr(b, "text"))
-            clean = text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
-            if not clean:
+            print(f"    Raw response (first 300 chars): {repr(text[:300])}")
+
+            # Clean up any markdown formatting and parse
+            clean = text.strip()
+            if clean.startswith("```"):
+                clean = clean.split("```")[1]
+                if clean.startswith("json"):
+                    clean = clean[4:]
+            clean = clean.strip()
+
+            if not clean or clean == "[]":
                 return []
             return json.loads(clean)
+
         except Exception as e:
             msg = str(e)
             if "rate_limit" in msg or "429" in msg:
-                wait = 60 * (attempt + 1)
-                print(f"    Rate limited. Waiting {wait}s before retry {attempt + 1}/3...")
+                wait = 90 * (attempt + 1)
+                print(f"    Rate limited. Waiting {wait}s (attempt {attempt+1}/3)...")
                 time.sleep(wait)
             else:
-                raise
+                print(f"    Parse/API error: {e}")
+                return []
     return []
 
 def deduplicate(events):
@@ -100,6 +96,7 @@ def submit(event):
         json=payload,
         timeout=15
     )
+    print(f"    CitySpark response: {r.status_code}")
     return r.status_code in (200, 201)
 
 def main():
@@ -107,32 +104,31 @@ def main():
     all_events = []
 
     print(f"Starting event agent for {COUNTY}")
-    print(f"Scanning {len(SOURCES)} sources...")
+    print(f"Scanning {len(SOURCES)} sources (debug mode — 5 sources only)...")
 
-    for i, source in enumerate(SOURCES):
-        print(f"  Searching: {source}")
+    for source in SOURCES:
+        print(f"\n  Searching: {source}")
         try:
             events = search_source(source, client)
             print(f"    Found {len(events)} events")
             all_events.extend(events)
         except Exception as e:
-            print(f"    Error: {e}")
-        # Pause between every search — longer after every 5th source
-        pause = 30 if (i + 1) % 5 == 0 else 10
-        print(f"    (waiting {pause}s...)")
-        time.sleep(pause)
+            print(f"    Unhandled error: {e}")
+        print(f"    Waiting 60s before next source...")
+        time.sleep(60)
 
     unique = deduplicate(all_events)
     print(f"\nTotal: {len(all_events)} found, {len(unique)} unique after dedup")
 
     submitted = 0
     for ev in unique:
+        print(f"\n  Submitting: {ev.get('name')}")
         if submit(ev):
             submitted += 1
-            print(f"  Submitted: {ev.get('name')}")
+            print(f"    Success!")
         else:
-            print(f"  Skipped: {ev.get('name')}")
-        time.sleep(1)
+            print(f"    Skipped.")
+        time.sleep(2)
 
     print(f"\nDone. {submitted}/{len(unique)} events submitted to CitySpark.")
 
