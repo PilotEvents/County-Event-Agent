@@ -21,7 +21,6 @@ jobs:
         run: pip install anthropic requests
 
       - name: Run event agent
-       name: Run event agent
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CITYSPARK_USER:    ${{ secrets.CITYSPARK_USER }}
