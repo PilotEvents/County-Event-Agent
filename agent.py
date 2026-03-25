@@ -122,7 +122,7 @@ def build_html(events, sources_scanned, run_date):
     for ev in events:
         cat   = ev.get("category", "Other")
         color = CAT_COLORS.get(cat, "#888")
-        url    = ev.get("url", "")
+       url    = ev.get("url", "")
         source = ev.get("source", "")
         if url:
             link = f'<a href="{url}" style="font-size:12px;color:{color};text-decoration:none;border:1px solid {color};border-radius:4px;padding:2px 8px;white-space:nowrap">View event →</a>'
