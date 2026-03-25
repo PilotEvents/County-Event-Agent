@@ -189,10 +189,9 @@ def main():
     client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
     all_events = []
 
-   for i, source in enumerate(SOURCES):
+    for i, source in enumerate(SOURCES):
         print(f"  [{i+1}/{len(SOURCES)}] {source}")
         events = search_source(source, client)
-        # Tag each event with where it came from
         for ev in events:
             if not ev.get("url"):
                 ev["url"] = source if source.startswith("http") else ""
