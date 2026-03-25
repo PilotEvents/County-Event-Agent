@@ -20,7 +20,12 @@ SOURCES = [
     "Aberdeen NC upcoming events",
     "Carthage NC upcoming events",
     "Moore County schools community events NC",
-    "Ticketmaster events near Pinehurst NC",
+    "https://www.vopnc.org/our-community/calendar-of-events",
+    "https://www.southernpines.net/calendar.aspx",
+    "https://www.thepinestimes.com/events/",
+    "https://homeofgolf.com/events/",
+    "https://www.eventbrite.com/d/nc--pinehurst/moore-county-nc/",
+    "https://ticketmesandhills.com",
 ]
 
 SYSTEM = """You are an event extraction agent. Your job is to find upcoming local events and return them as a JSON array.
