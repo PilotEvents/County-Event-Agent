@@ -79,15 +79,30 @@ def search_source(source, client):
     return []
 
 def deduplicate(events):
-    today = date.today().isoformat()  # e.g. "2026-03-25"
+    today = date.today()
     seen, unique = set(), []
     for ev in events:
-        # Filter out past events
-        event_date = ev.get("start_datetime", ev.get("date", ""))
-        if event_date and event_date[:10] < today:
+        # Try to parse whatever date format came back
+        raw = ev.get("start_datetime", ev.get("date", ""))
+        event_date = None
+        for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%B %d, %Y", "%A, %B %d", "%A, %B %d, %Y"):
+            try:
+                parsed = datetime.strptime(raw[:len(fmt)+6].strip(), fmt)
+                # If no year in format, assume current year (or next if date already passed)
+                if parsed.year == 1900:
+                    parsed = parsed.replace(year=today.year)
+                    if parsed.date() < today:
+                        parsed = parsed.replace(year=today.year + 1)
+                event_date = parsed.date()
+                break
+            except ValueError:
+                continue
+
+        # Skip if we parsed a date and it's in the past
+        if event_date and event_date < today:
             continue
-        key = (ev.get("name", "").lower().strip(),
-               ev.get("date", "").lower().strip())
+
+        key = (ev.get("name", "").lower().strip(), raw.lower().strip())
         if key not in seen:
             seen.add(key)
             unique.append(ev)
