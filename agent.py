@@ -11,6 +11,7 @@ COUNTY         = "Moore County, NC"
 DAYS_AHEAD     = 30
 
 SOURCES = [
+     # Search phrases
     "Moore County Parks and Recreation events NC",
     "Moore County library events NC",
     "Pinehurst NC upcoming events",
@@ -20,6 +21,7 @@ SOURCES = [
     "Aberdeen NC upcoming events",
     "Carthage NC upcoming events",
     "Moore County schools community events NC",
+     # Direct URLs
     "https://www.vopnc.org/our-community/calendar-of-events",
     "https://www.southernpines.net/calendar.aspx",
     "https://www.thepinestimes.com/events/",
@@ -120,8 +122,14 @@ def build_html(events, sources_scanned, run_date):
     for ev in events:
         cat   = ev.get("category", "Other")
         color = CAT_COLORS.get(cat, "#888")
-        url   = ev.get("url", "")
-        link  = f'<a href="{url}" style="font-size:12px;color:{color};text-decoration:none;border:1px solid {color};border-radius:4px;padding:2px 8px;white-space:nowrap">View event →</a>' if url else ""
+     url    = ev.get("url", "")
+        source = ev.get("source", "")
+        if url:
+            link = f'<a href="{url}" style="font-size:12px;color:{color};text-decoration:none;border:1px solid {color};border-radius:4px;padding:2px 8px;white-space:nowrap">View event →</a>'
+        elif source and not source.startswith("http"):
+            link = f'<span style="font-size:11px;color:#888;font-style:italic">via {source}</span>'
+        else:
+            link = ""
         cards_html += f"""
         <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px;margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
@@ -181,9 +189,14 @@ def main():
     client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
     all_events = []
 
-    for i, source in enumerate(SOURCES):
+   for i, source in enumerate(SOURCES):
         print(f"  [{i+1}/{len(SOURCES)}] {source}")
         events = search_source(source, client)
+        # Tag each event with where it came from
+        for ev in events:
+            if not ev.get("url"):
+                ev["url"] = source if source.startswith("http") else ""
+            ev["source"] = source
         print(f"    → {len(events)} events found")
         all_events.extend(events)
         time.sleep(60)
