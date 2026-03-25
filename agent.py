@@ -25,6 +25,7 @@ SOURCES = [
     "https://www.vopnc.org/our-community/calendar-of-events",
     "https://www.southernpines.net/calendar.aspx",
     "https://www.thepinestimes.com/events/",
+    "https://www.thepinestimes.com/events/list/?ical=1",
     "https://homeofgolf.com/events/",
     "https://www.eventbrite.com/d/nc--pinehurst/moore-county-nc/",
     "https://ticketmesandhills.com",
