@@ -1,7 +1,7 @@
 import anthropic, requests, json, os, time, smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime
+from datetime import datetime, date, timezone
 
 ANTHROPIC_KEY  = os.environ["ANTHROPIC_API_KEY"]
 EMAIL_FROM     = os.environ["EMAIL_FROM"]       # your Gmail address
@@ -77,14 +77,20 @@ def search_source(source, client):
     return []
 
 def deduplicate(events):
+    today = date.today().isoformat()  # e.g. "2026-03-25"
     seen, unique = set(), []
     for ev in events:
-        key = (ev.get("name", "").lower().strip(), ev.get("date", "").lower().strip())
+        # Filter out past events
+        event_date = ev.get("start_datetime", ev.get("date", ""))
+        if event_date and event_date[:10] < today:
+            continue
+        key = (ev.get("name", "").lower().strip(),
+               ev.get("date", "").lower().strip())
         if key not in seen:
             seen.add(key)
             unique.append(ev)
     return unique
-
+    
 CAT_COLORS = {
     "Arts":      "#534AB7",
     "Music":     "#993556",
