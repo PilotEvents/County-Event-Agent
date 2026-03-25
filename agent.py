@@ -111,18 +111,16 @@ def build_html(events, sources_scanned, run_date):
         c = ev.get("category", "Other")
         cat_counts[c] = cat_counts.get(c, 0) + 1
 
-    # Summary pills
     pills_html = ""
     for cat, count in sorted(cat_counts.items()):
         color = CAT_COLORS.get(cat, "#888")
         pills_html += f'<span style="display:inline-block;background:{color};color:#fff;font-size:12px;font-weight:500;padding:3px 10px;border-radius:99px;margin:2px 4px 2px 0">{cat} ({count})</span>'
 
-    # Event cards
     cards_html = ""
     for ev in events:
-        cat   = ev.get("category", "Other")
-        color = CAT_COLORS.get(cat, "#888")
-       url    = ev.get("url", "")
+        cat    = ev.get("category", "Other")
+        color  = CAT_COLORS.get(cat, "#888")
+        url    = ev.get("url", "")
         source = ev.get("source", "")
         if url:
             link = f'<a href="{url}" style="font-size:12px;color:{color};text-decoration:none;border:1px solid {color};border-radius:4px;padding:2px 8px;white-space:nowrap">View event →</a>'
